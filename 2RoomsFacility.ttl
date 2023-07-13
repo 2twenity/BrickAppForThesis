@@ -1,0 +1,37 @@
+@prefix brick1: <https://brickschema.org/schema/1.3/Brick#> .
+@prefix ex: <http://example.com#> .
+
+ex:AHU-AB a brick1:AHU ;
+    brick1:feeds ex:VAV-A,
+        ex:VAV-B .
+
+ex:SensorA a brick1:Temperature_Sensor ;
+    brick1:hasTimeseriesReference "pathtodatabaseA" ;
+    brick1:isLocatedIn ex:Zone-A ;
+    brick1:isPointOf ex:VAV-A .
+
+ex:SensorB a brick1:Temperature_Sensor ;
+    brick1:hasTimeseriesReference "pathtodatabaseB" ;
+    brick1:isLocatedIn ex:Zone-B ;
+    brick1:isPointOf ex:VAV-B .
+
+ex:RoomBIMA a brick1:Exercise_Room ;
+    brick1:isLocatedIn ex:Building-1 .
+
+ex:RoomBIMB a brick1:Library ;
+    brick1:isLocatedIn ex:Building-1 .
+
+ex:Building-1 a brick1:Building .
+
+ex:VAV-A a brick1:VAV ;
+    brick1:feeds ex:Zone-A ;
+    brick1:isLocatedIn ex:RoomBIMA .
+
+ex:VAV-B a brick1:VAV ;
+    brick1:feeds ex:Zone-B ;
+    brick1:isLocatedIn ex:RoomBIMB .
+
+ex:Zone-A a brick1:HVAC_Zone .
+
+ex:Zone-B a brick1:HVAC_Zone .
+
