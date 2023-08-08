@@ -1,43 +1,13 @@
-#Working with database
-from sqlalchemy import create_engine, ForeignKey, Column, String, Integer, CHAR, MetaData, text
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-
 from rdflib import Graph #to query Brick model
-import random #to simulate temperature
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+import ifcopenshell
 
-#Operating on ASHRAE Thermal Comfort Database II
-from database_operator import temperature_according_to_location
-
-
-#Defining function to work with SQLAlchemy
-Base = declarative_base()
-engine = create_engine("sqlite:///temperature.db")
-
-def create_table(table_name):
-    """Return instance of class responsible for
-    linking sql table to python environment"""
-    class Database(Base):
-        __tablename__ = f"{table_name}"
-
-        time = Column("time", Integer, primary_key=True) #Time column
-        temperature = Column("temperature", Integer) #Temperature column
-    
-        def __init__(self, time, temperature):
-            self.time = time
-            self.temperature = temperature
-
-        def __repr__(self):
-            return f"{self.__tablename__}"
-        
-    return Database 
-
-
-def query(env, system):
-    yield env.timeout(1) #Query is executed as a first process and never repeated
+def query(graph_name):
 
     g = Graph()
-    data = g.parse("2RoomsFacility.ttl", format='turtle')
+    data = g.parse(graph_name, format='turtle')
 
     def extract_sensors(data):
         res = {}
@@ -62,76 +32,112 @@ def query(env, system):
     
         return res
     
-    system.update_links(extract_sensors(data)) #Writing data to system class
+    return extract_sensors(data)
 
+def graph_builder(path_1, path_2, ref_value):
+    SensorA_df = pd.read_csv(f"{path_1}")
+    SensorB_df = pd.read_csv(f"{path_2}")
 
-def sensor(env, system):
-    """Simulates temperature deteected by sensors 
-    and writes data to sqlite database"""
-    while True:
-        yield env.timeout(1)
-        Session = sessionmaker(bind=engine)
-        session = Session()
-        for table in system.give_tables():
-            value = table (env.now, random.randint(15,25))
-            session.add(value)
+    # Changing datatype to datetime
+    SensorA_df["Datetime"] = pd.to_datetime(SensorA_df["Datetime"])
+    SensorB_df["Datetime"] = pd.to_datetime(SensorB_df["Datetime"])
 
-        session.commit()
+    Sensors = ["SensorA", "SensorB"]
 
-def reader(env, system):
-    """Reads data from sqlite database"""
-    while True:
-        yield env.timeout(1)
-        for table in system.give_links():
-            with engine.connect() as connection:
-                result = connection.execute(text(f"select * from {table} ;"))
-                last = result.all()[-1]
-                last_temp = last[1]
+    DictA = {"day": [], "avg_temp_A": []}
+    minimal_day, maximal_day = min(SensorA_df["Datetime"].dt.day), max(SensorA_df["Datetime"].dt.day)
 
-                temp_difference = round(abs(last_temp - system.give_location_temperature()), 2)
-                if temp_difference > 4:
-                    print(f"!WARNING TEMPERATURE OUT OF RANGE! {table}: {last_temp}, diff: {temp_difference}")
-                else:
-                    print(f"All good! {table}: {last_temp}, diff: {temp_difference}")
+    for i in range(minimal_day, maximal_day + 1):
+        temp_array = SensorA_df["Temperature"][SensorA_df["Datetime"].dt.day == i]
+        avg = np.round(np.mean(temp_array), 2)
+        DictA["day"].append(i)
+        DictA["avg_temp_A"].append(avg)
 
-def chekup_process(env, system):
-    """Checkin poccess"""
-    while True:
-        yield env.timeout(9)
-        print("Current time is %s" % env.now)
-        print("Tables: ", system.give_tables())
-        print("Links: ", system.give_links())
+    DictB = {"day": [], "avg_temp_B": []}
+    minimal_day, maximal_day = min(SensorB_df["Datetime"].dt.day), max(SensorB_df["Datetime"].dt.day)
 
-def database_maker(env, system):
-    """Creates databases. Adds instances of classes to system's tables"""
-    yield env.timeout(1)
-    for key, value in system.give_links().items():
-        table = create_table(key)
+    for i in range(minimal_day, maximal_day + 1):
+        temp_array = SensorB_df["Temperature"][SensorB_df["Datetime"].dt.day == i]
+        avg = np.round(np.mean(temp_array), 2)
+        DictB["day"].append(i)
+        DictB["avg_temp_B"].append(avg)
 
-        system.add_tables(table)
-        print(f"{table} was created and added to system class")
+    day_sensorA_df = pd.DataFrame(DictA).set_index(["day"])
+    day_sensorB_df = pd.DataFrame(DictB).set_index(["day"])
 
-    Base.metadata.create_all(bind=engine)
+    res = day_sensorA_df.join(day_sensorB_df)
 
-def drop_all_tables(env, system):
-    """Deletes all tables from database. Is supposed to be run as a second"""
-    yield env.timeout(1)
-    metadata = MetaData()
-    metadata.reflect(bind=engine)
-    try: #In case there will be no tables in the system
-        for name in system.give_links():
-            table = metadata.tables[name]
-            if table is not None:
-                Base.metadata.drop_all(engine, [table], checkfirst=True)
-                print("*************")
-                print("TABLE DROPPED")
-                print("*************")
-    except KeyError as Key:
-        print("Somethig went wrong with tables in system")
+    x = list(range(1, len(res)+1))
+    y = Sensors
 
+    array_a = np.array(res["avg_temp_A"])
+    array_b = np.array(res["avg_temp_B"])
 
-def get_facility_location(env, system):
-    yield env.timeout(1)
+    z = np.array([array_a, array_b])
 
-    temperature_value = temperature_according_to_location()
-    system.location_temperature = temperature_value
+    #calculating temperature range
+    #maximal = np.max(z["avg_temp_A"])
+    maximal_temp = np.nanmax(z)
+    minimal_temp = np.nanmin(z)
+    print("Minimal temp: ", maximal_temp)
+    print("Maximal temp: ", minimal_temp)
+    print("Value from DB: ", ref_value)
+    calc_value = np.round((ref_value - minimal_temp)/ (maximal_temp - minimal_temp), 2)
+    print("Calculated value: ", calc_value)
+
+    if np.isnan(calc_value):
+        fig = go.Figure(data=go.Heatmap(z=z, x=x, y=y,
+                                        colorscale = [[0, "blue"],
+                                                    [1.0, "red"]]))
+    else:
+        fig = go.Figure(data=go.Heatmap(z=z, x=x, y=y,
+                                        colorscale = [[0, "blue"],
+                                                    [calc_value, 'yellow'],
+                                                    [1.0, "red"]]))
+
+    fig.update_layout(
+        title='Avg Temperature During the Day',
+        xaxis_nticks=36)
+    
+    return fig
+
+def get_coordinates(ifc_path):
+    def dms2dd(d, m, s):
+        return d + m/60 + s/3600
+
+    ifc = ifcopenshell.file.from_string(ifc_path.getvalue().decode("utf-8"))
+    coordinates = ifc.by_type('IFCSITE')
+    case = []
+    for each in coordinates[0]:
+        if type(each) is tuple:
+            case.append(each)
+
+    coordinates = []
+    for each in case:
+        d, m, s = each[0], each[1], each[2]
+        coordinates.append(round(dms2dd(d, m, s), 6))
+    return coordinates
+
+def find_closest_city(comfort_df, ifc_coordinates):
+    coord_df = comfort_df[["Coordinates_lat", "Coordinates_long"]].drop_duplicates()
+    coord_arr = np.array((coord_df["Coordinates_lat"].astype(float), coord_df["Coordinates_long"].astype(float)))
+
+    cities_arr = np.array(comfort_df["City"].drop_duplicates())
+    point_lat1 = np.deg2rad(np.array(coord_df["Coordinates_lat"].astype(float)))
+    point_long1 = np.deg2rad(np.array(coord_df["Coordinates_long"].astype(float)))
+
+    point_lat2 = np.deg2rad(ifc_coordinates[0])
+    point_long2 = np.deg2rad(ifc_coordinates[1])
+
+    #coord_arr[0] = coord_arr[0].astype(str)
+
+    dlat = point_lat1 - point_lat2
+    dlon = point_long1 - point_long2
+
+    a = np.power(np.sin(dlat / 2), 2) + np.cos(point_lat1) * np.cos(point_lat2) * np.power(np.sin(dlon / 2), 2)
+
+    c = 2 * np.sqrt(np.arcsin(a))
+    r = 6371
+
+    res = r*c
+    return cities_arr[np.argmin(res)]

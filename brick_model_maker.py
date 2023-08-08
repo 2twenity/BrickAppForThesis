@@ -69,8 +69,8 @@ g.add((EX['SensorB'], BRICK['isPointOf'], EX['VAV-B']))
 g.add((EX['SensorB'], BRICK['isLocatedIn'], EX['Zone-B']))
 
 #Linking Sensors To Databases
-g.add((EX['SensorA'], BRICK['hasTimeseriesReference'], Literal("pathtodatabaseA")))
-g.add((EX['SensorB'], BRICK['hasTimeseriesReference'], Literal("pathtodatabaseB")))
+g.add((EX['SensorA'], BRICK['hasTimeseriesReference'], Literal("csv_data/SensorA.csv")))
+g.add((EX['SensorB'], BRICK['hasTimeseriesReference'], Literal("csv_data/SensorB.csv")))
 
 
 g.serialize(destination='2RoomsFacility.ttl', format='turtle')

@@ -6,12 +6,12 @@ ex:AHU-AB a brick1:AHU ;
         ex:VAV-B .
 
 ex:SensorA a brick1:Temperature_Sensor ;
-    brick1:hasTimeseriesReference "pathtodatabaseA" ;
+    brick1:hasTimeseriesReference "csv_data/SensorA.csv" ;
     brick1:isLocatedIn ex:Zone-A ;
     brick1:isPointOf ex:VAV-A .
 
 ex:SensorB a brick1:Temperature_Sensor ;
-    brick1:hasTimeseriesReference "pathtodatabaseB" ;
+    brick1:hasTimeseriesReference "csv_data/SensorB.csv" ;
     brick1:isLocatedIn ex:Zone-B ;
     brick1:isPointOf ex:VAV-B .
 
