@@ -40,7 +40,7 @@ st.title("Temperature Heatmap")
 place_holder = st.empty()
 
 # Loading files with data
-st.subheader("Put Brick model and IFC")
+st.subheader("Put Brick model and optionally IFC")
 file1, file2 = st.columns(2)
 with file1:
     session["Brick_model"] = st.file_uploader("Load Brick Model")
@@ -73,7 +73,7 @@ with fig_col1:
         city_option = st.selectbox("Selecting Location", cities, on_change=change_city_identified)
         
     else:
-        st.info('Location was set from IFC', icon="ℹ️")
+        st.info('Location was set from IFC. If you want to choose it manually, delete IFC file from session', icon="ℹ️")
         city_option = session["Closest_city_name"]
 
 with fig_col2:
@@ -94,10 +94,12 @@ if session["City_identified"] == True:
 #Building Graph
 place_holder = st.empty()
 
-st.write(session)
-
-if st.button("Push me to build graph"):
-    with place_holder.container():
-        from_query = list(sensors.values())
-        fig = graph_builder(from_query[0], from_query[1], ref_value)
-        st.plotly_chart(fig, use_container_width=True)
+#st.write(session)
+if session["Brick_loaded"] == False:
+    st.warning("To build a temperature heatmap Brick model is required")
+else:
+    if st.button("Push me to build graph"):
+        with place_holder.container():
+            from_query = list(sensors.values())
+            fig = graph_builder(from_query[0], from_query[1], ref_value)
+            st.plotly_chart(fig, use_container_width=True)
