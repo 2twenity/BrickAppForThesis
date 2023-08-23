@@ -9,11 +9,11 @@
 go to localhost http://0.0.0.0:8501
 
 3. Insert Brick model (a file with .ttl extension)
-![pics/ChoosingWindow.png]
+![Choosing a window](pics/ChoosingWindow.png)
 4. OPTIONALLY upload an IFC to set location automatically
 
 5. Select location
-![pics/ChoosingLocation.png]
+![Selecting geoloaction](pics/ChoosingLocation.png)
 
 6. Build a heatmap based on data from sensors and optimal value from database
-![pics/BuildingHeatmap.png]
+![Making a heatmap](pics/BuildingHeatmap.png)
